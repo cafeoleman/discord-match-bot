@@ -4,43 +4,51 @@ import { Client, GatewayIntentBits } from "discord.js";
 const app = express();
 app.use(express.json());
 
-// Discord Botクライアント
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Discord Bot
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
 
 // Botログイン
 client.login(process.env.DISCORD_TOKEN);
 
-// Base44 → Bot へ部屋作成リクエスト
-app.post("/api/create-room", async (req, res) => {
+client.once("ready", () => {
+  console.log(`Bot logged in as ${client.user.tag}`);
+});
+
+// Base44 → Bot へ部屋作成API
+app.post("/create-room", async (req, res) => {
   try {
     const { game_title, party_size } = req.body;
 
-    // 新規サーバーを作成
+    // 新規サーバー作成
     const guild = await client.guilds.create({
-      name: `${game_title} - ${party_size}人募集`,
+      name: `${game_title} - ${party_size}人募集`
     });
 
-    // サーバー内のテキストチャンネル取得
+    // 最初のテキストチャンネル
     const channels = await guild.channels.fetch();
     const defaultChannel = channels.find(ch => ch.type === 0);
 
-    // 招待URL作成
+    // 招待URL
     const invite = await defaultChannel.createInvite({
       maxAge: 3600,
-      maxUses: party_size,
+      maxUses: party_size
     });
 
     res.json({
       invite_url: invite.url,
       guild_id: guild.id
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "room creation failed" });
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to create room" });
   }
 });
 
-// Railway用のHTTPサーバー
-app.listen(3000, () => {
-  console.log("Bot server running on port 3000");
+// Render で必須：ポート指定
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
